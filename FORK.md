@@ -50,6 +50,54 @@ xcodebuild -project cmux.xcodeproj -scheme cmux -configuration Debug \
   -destination 'platform=macOS' -derivedDataPath /tmp/cmux-dan build
 ```
 
+## The double-clickable app
+
+The tagged build lives in DerivedData, which is not a stable home for something
+you keep in the Dock. `scripts/install-my-cmux.sh` copies it to a fixed path:
+
+```bash
+./scripts/install-my-cmux.sh                # rebuild, then refresh the installed copy
+./scripts/install-my-cmux.sh --launch       # ...and open it
+./scripts/install-my-cmux.sh --no-build     # just reinstall what is already built
+```
+
+That gives you `/Applications/cmux DEV dan.app` — double-clickable, and pinned
+in the Dock as **cmux DEV dan**, next to the release **cmux**.
+
+**Run it after every change.** The Dock tile points at the installed copy, not
+at DerivedData, so a plain `reload.sh` will not update what double-clicking
+launches. `install-my-cmux.sh` does the build and the refresh together.
+
+The script quits only this tag's copy before replacing it, matching on the full
+executable path, so `/Applications/cmux.app` is never touched.
+
+### Why it disables updates
+
+The build inherits upstream's Sparkle feed —
+`SUFeedURL = .../manaflow-ai/cmux/releases/latest/download/appcast.xml` with
+`SUEnableAutomaticChecks = true` — in Debug as well as Release. Left alone, your
+fork would eventually offer to "update" itself into the official cmux binary and
+replace your build. The installer writes the Sparkle preferences off in the
+app's own defaults domain, which avoids editing `Info.plist` and re-signing:
+
+```bash
+defaults write com.cmuxterm.app.debug.dan SUEnableAutomaticChecks -bool false
+defaults write com.cmuxterm.app.debug.dan SUAutomaticallyUpdate -bool false
+```
+
+### Two things this build is not
+
+- **It is a Debug build** (`-Onone`). It is correct and it runs, but the Swift
+  layer is unoptimized. Terminal rendering comes from the prebuilt
+  `GhosttyKit.xcframework`, which is compiled `ReleaseFast`, so the typing path
+  is not the slow part. If you want an optimized app, build Release with an
+  explicit distinct bundle id — never with `reloadp.sh`, which builds as plain
+  `cmux.app` with the *official* bundle id and runs `pkill -x cmux`, killing
+  your real cmux.
+- **It shares the release app's icon.** Both Dock tiles look identical; only the
+  labels differ. Changing the icon means editing `Assets.xcassets` (or
+  `AppIcon.icon`) and rebuilding — a real change to the fork, not a Dock setting.
+
 ## Drive the tagged build from the CLI
 
 ```bash
