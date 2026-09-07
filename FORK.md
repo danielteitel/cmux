@@ -96,6 +96,33 @@ coding agents; they are worth reading before changing anything.
 | Go | 1.27.1 | wireguard-go for the Cloud tunnel extension (Release only; Debug gets a stub) |
 | Bun | 1.4.2 | `web/`, `webviews/`, and Biome lint |
 
+## What a build touches outside the repo
+
+`reload.sh` installs a dev shim so the `cmux` command can reach a running app:
+
+| Path | What it is |
+|---|---|
+| `~/.cargo/bin/cmux` | shim managed by `reload.sh`; routes to whichever cmux socket is ambient, so plain `cmux` still hits the release app |
+| `~/.local/bin/cmux-dev` | same shim under a dev-only name |
+| `/tmp/cmux-cli` | symlink to the most recently reloaded build's CLI — *not* tag-bound, so don't use it in scripts |
+| `~/.cache/cmux/ghosttykit/` | cached `GhosttyKit.xcframework` per ghostty commit |
+| `~/Library/Developer/Xcode/DerivedData/cmux-dan/` | this tag's build products (~10 GB) |
+
+`~/.cargo/bin/cmux` lands ahead of `/Applications/cmux.app/.../bin/cmux` on PATH.
+That is upstream's intended behavior and it still resolves to your main app, but
+if you would rather it never be written, build with:
+
+```bash
+CMUX_RELOAD_NO_GLOBAL_CLI_LINKS=1 ./scripts/reload.sh --tag dan
+```
+
+To tear a tag down completely:
+
+```bash
+pkill -f "cmux DEV dan.app/Contents/MacOS/cmux DEV"
+rm -rf ~/Library/Developer/Xcode/DerivedData/cmux-dan /tmp/cmux-dan /tmp/cmux-debug-dan.sock
+```
+
 ## Adding your own things
 
 Not everything needs a Swift change. cmux has extension points that work
